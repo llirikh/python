@@ -24,40 +24,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-          # Проверяем что HEAD~1 существует
+          # Проверяем наличие предыдущего коммита
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
               CHANGED="$(git diff --name-only HEAD~1 HEAD)"
           else
-              echo "No previous commit — using full file list from HEAD"
+              echo "No previous commit — checking all files"
               CHANGED="$(git ls-tree -r --name-only HEAD)"
           fi
 
           echo "Changed: $CHANGED"
 
           INVALID="false"
-          TASKS_LIST=""
+          TASKS_LIST=()
 
+          # Обрабатываем изменения
           for FILE in $CHANGED; do
-            # Проверка на выход за пределы tasks/
+            # Файл вне tasks → ошибка
             if [[ "$FILE" != tasks/* ]]; then
               INVALID="true"
             fi
 
-            # Выделяем tasks/<theme>/<task>
+            # Ищем tasks/<theme>/<task>/
             if [[ "$FILE" =~ ^tasks/[^/]+/[^/]+/ ]]; then
               TASK_DIR=$(echo "$FILE" | awk -F/ '{print $1"/"$2"/"$3}')
-              if [[ ! " $TASKS_LIST " =~ " $TASK_DIR " ]]; then
-                TASKS_LIST="$TASKS_LIST $TASK_DIR"
+              # Уникальные значения
+              if [[ ! " ${TASKS_LIST[*]} " =~ " ${TASK_DIR} " ]]; then
+                TASKS_LIST+=("$TASK_DIR")
               fi
             fi
           done
 
-          # Если задач нет — корректный пустой массив
-          if [[ -z "$TASKS_LIST" ]]; then
+          # Преобразование в корректный JSON
+          if [[ ${#TASKS_LIST[@]} -eq 0 ]]; then
             TASKS_JSON="[]"
           else
-            # Формируем массив JSON
-            TASKS_JSON=$(printf '%s\n' $TASKS_LIST | jq -R . | jq -s .)
+            # Формируем строчный JSON-массив в одну строку
+            TASKS_JSON=$(printf '%s\n' "${TASKS_LIST[@]}" | jq -R . | jq -s -c .)
           fi
 
           echo "invalid=$INVALID" >> $GITHUB_OUTPUT
