@@ -43,7 +43,7 @@ jobs:
               INVALID="true"
             fi
 
-            # Извлечь tasks/<theme>/<task>
+            # Выделяем tasks/<theme>/<task>
             if [[ "$FILE" =~ ^tasks/[^/]+/[^/]+/ ]]; then
               TASK_DIR=$(echo "$FILE" | awk -F/ '{print $1"/"$2"/"$3}')
               if [[ ! " $TASKS_LIST " =~ " $TASK_DIR " ]]; then
@@ -52,11 +52,16 @@ jobs:
             fi
           done
 
-          # Преобразуем список задач в JSON
-          TASKS_ARRAY_JSON=$(printf '%s\n' $TASKS_LIST | jq -R . | jq -s .)
+          # Если задач нет — корректный пустой массив
+          if [[ -z "$TASKS_LIST" ]]; then
+            TASKS_JSON="[]"
+          else
+            # Формируем массив JSON
+            TASKS_JSON=$(printf '%s\n' $TASKS_LIST | jq -R . | jq -s .)
+          fi
 
           echo "invalid=$INVALID" >> $GITHUB_OUTPUT
-          echo "tasks=$TASKS_ARRAY_JSON" >> $GITHUB_OUTPUT
+          echo "tasks=$TASKS_JSON" >> $GITHUB_OUTPUT
 
       - name: Fail if invalid changes
         if: ${{ steps.changed.outputs.invalid == 'true' }}
@@ -67,7 +72,7 @@ jobs:
   # --- Job 2: Run tests per task ---
   task-tests:
     needs: changes
-    if: ${{ needs.changes.outputs.tasks != '' }}
+    if: ${{ needs.changes.outputs.tasks != '[]' }}
     runs-on: ubuntu-latest
 
     strategy:
