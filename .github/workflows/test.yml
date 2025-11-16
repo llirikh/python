@@ -15,6 +15,8 @@ jobs:
       invalid: ${{ steps.changed.outputs.invalid }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Detect changed files
         id: changed
@@ -22,8 +24,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-          CHANGED="$(git diff --name-only HEAD~1 HEAD)"
-          echo "Changed files: $CHANGED"
+          # Проверяем что HEAD~1 существует
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+              CHANGED="$(git diff --name-only HEAD~1 HEAD)"
+          else
+              echo "No previous commit — using full file list from HEAD"
+              CHANGED="$(git ls-tree -r --name-only HEAD)"
+          fi
+
+          echo "Changed: $CHANGED"
 
           INVALID="false"
           TASKS_LIST=""
@@ -43,7 +52,7 @@ jobs:
             fi
           done
 
-          # Преобразуем список задач в JSON-массив
+          # Преобразуем список задач в JSON
           TASKS_ARRAY_JSON=$(printf '%s\n' $TASKS_LIST | jq -R . | jq -s .)
 
           echo "invalid=$INVALID" >> $GITHUB_OUTPUT
