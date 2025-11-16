@@ -1,0 +1,114 @@
+name: Test Python Tasks
+
+on:
+  push:
+    branches:
+      - submit/tasks
+
+jobs:
+
+  # --- Job 1: Determine changed tasks ---
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      tasks: ${{ steps.changed.outputs.tasks }}
+      invalid: ${{ steps.changed.outputs.invalid }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed files
+        id: changed
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+          CHANGED="$(git diff --name-only HEAD~1 HEAD)"
+          echo "Changed files: $CHANGED"
+
+          INVALID="false"
+          TASKS_LIST=""
+
+          for FILE in $CHANGED; do
+            # Проверка на выход за пределы tasks/
+            if [[ "$FILE" != tasks/* ]]; then
+              INVALID="true"
+            fi
+
+            # Извлечь tasks/<theme>/<task>
+            if [[ "$FILE" =~ ^tasks/[^/]+/[^/]+/ ]]; then
+              TASK_DIR=$(echo "$FILE" | awk -F/ '{print $1"/"$2"/"$3}')
+              if [[ ! " $TASKS_LIST " =~ " $TASK_DIR " ]]; then
+                TASKS_LIST="$TASKS_LIST $TASK_DIR"
+              fi
+            fi
+          done
+
+          # Преобразуем список задач в JSON-массив
+          TASKS_ARRAY_JSON=$(printf '%s\n' $TASKS_LIST | jq -R . | jq -s .)
+
+          echo "invalid=$INVALID" >> $GITHUB_OUTPUT
+          echo "tasks=$TASKS_ARRAY_JSON" >> $GITHUB_OUTPUT
+
+      - name: Fail if invalid changes
+        if: ${{ steps.changed.outputs.invalid == 'true' }}
+        run: |
+          echo "❌ Error: Some changed files are outside tasks/ directory."
+          exit 1
+
+  # --- Job 2: Run tests per task ---
+  task-tests:
+    needs: changes
+    if: ${{ needs.changes.outputs.tasks != '' }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        task: ${{ fromJson(needs.changes.outputs.tasks) }}
+
+    name: Test ${{ matrix.task }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install uv
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # Create virtual environment
+      - name: Create venv
+        run: |
+          uv venv --python 3.13.7 .venv
+          source .venv/bin/activate
+
+      # Install dependencies
+      - name: uv sync
+        run: |
+          source .venv/bin/activate
+          uv sync --active
+
+      # Install internal library
+      - name: Install internal testlib
+        run: |
+          source .venv/bin/activate
+          uv pip install --upgrade --editable tools/testlib
+
+      # Run pytest
+      - name: Run pytest
+        run: |
+          source .venv/bin/activate
+          pytest ${{ matrix.task }}
+
+      # Run ruff
+      - name: Run ruff
+        run: |
+          source .venv/bin/activate
+          ruff check ${{ matrix.task }}
+
+      # Run pyrefly
+      - name: Run pyrefly
+        run: |
+          source .venv/bin/activate
+          pyrefly check ${{ matrix.task }}
