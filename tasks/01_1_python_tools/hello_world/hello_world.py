@@ -2,4 +2,4 @@ def get_hello_world() -> str:
     """
     :return: hello world string
     """
-    return "Hello world!" # Test1
+    return "Hello world!" # Test2
