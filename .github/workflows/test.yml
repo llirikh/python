@@ -28,10 +28,8 @@ jobs:
               CHANGED="$(git ls-tree -r --name-only HEAD)"
           fi
 
-          YELLOW = '\e[0;33m'
-          NC='\033[0m'
-          echo -e "{YELLOW}Changed: "
-          echo -e "$CHANGED {NC}"
+          echo -e "\e[0;33m Changed: "
+          echo -e "$CHANGED \033[0m"
 
           INVALID="false"
           TASKS_LIST=()
@@ -67,9 +65,7 @@ jobs:
       - name: Fail if invalid changes
         if: ${{ steps.changed.outputs.invalid == 'true' }}
         run: |
-          RED='\033[0;31m'
-          NC='\033[0m'
-          echo -e "{RED}Error: Some changed files are outside tasks/ directory.{NC}"
+          echo -e "\033[0;31m Error: Some changed files are outside tasks/ directory.\033[0m"
           exit 1
 
 
