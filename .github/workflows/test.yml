@@ -7,7 +7,6 @@ on:
 
 jobs:
 
-  # --- Job 1: Determine changed tasks ---
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -21,8 +20,6 @@ jobs:
       - name: Detect changed files
         id: changed
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
 
           # Проверяем наличие предыдущего коммита
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
@@ -32,7 +29,10 @@ jobs:
               CHANGED="$(git ls-tree -r --name-only HEAD)"
           fi
 
-          echo "Changed: $CHANGED"
+          YELLOW = '\e[0;33m'
+          NC='\033[0m'
+          echo -e "{YELLOW}Changed: "
+          echo -e "$CHANGED {NC}"
 
           INVALID="false"
           TASKS_LIST=()
@@ -68,10 +68,12 @@ jobs:
       - name: Fail if invalid changes
         if: ${{ steps.changed.outputs.invalid == 'true' }}
         run: |
-          echo "❌ Error: Some changed files are outside tasks/ directory."
+          RED='\033[0;31m'
+          NC='\033[0m'
+          echo -e "{RED}Error: Some changed files are outside tasks/ directory.{NC}"
           exit 1
 
-  # --- Job 2: Run tests per task ---
+
   task-tests:
     needs: changes
     if: ${{ needs.changes.outputs.tasks != '[]' }}
@@ -87,43 +89,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install uv
-      - name: Install uv
+      - name: Prepare environment
         run: |
+          # Install uv
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # Create virtual environment
-      - name: Create venv
-        run: |
+          # Create virtual environment
           uv venv --python 3.13.7 .venv
           source .venv/bin/activate
 
-      # Install dependencies
-      - name: uv sync
-        run: |
+          # Install dependencies
           source .venv/bin/activate
           uv sync --active
 
-      # Install internal library
-      - name: Install internal testlib
-        run: |
+          # Install internal library
           source .venv/bin/activate
           uv pip install --upgrade --editable tools/testlib
 
-      # Run pytest
+
       - name: Run pytest
         run: |
           source .venv/bin/activate
           pytest ${{ matrix.task }}
 
-      # Run ruff
+
       - name: Run ruff
         run: |
           source .venv/bin/activate
           ruff check ${{ matrix.task }}
 
-      # Run pyrefly
+          
       - name: Run pyrefly
         run: |
           source .venv/bin/activate
