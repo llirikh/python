@@ -20,7 +20,6 @@ jobs:
       - name: Detect changed files
         id: changed
         run: |
-
           # Проверяем наличие предыдущего коммита
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
               CHANGED="$(git diff --name-only HEAD~1 HEAD)"
