@@ -20,7 +20,7 @@ class Case:
         return 'find_median_in_{}_and_{}'.format(self.nums1, self.nums2)
 
 
-BIG_VALUE = 10**15
+BIG_VALUE = 10**7
 
 
 def get_range_with_peak_on_position(range_size: int, position: int) -> list[int]:
