@@ -44,5 +44,5 @@ def find_median(nums1: Sequence[int], nums2: Sequence[int]) -> float:
 
     if (n + m) % 2 == 1:
         prev = cur
-    
+
     return (prev + cur) / 2
