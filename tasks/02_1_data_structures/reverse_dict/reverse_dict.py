@@ -13,5 +13,5 @@ def revert(dct: tp.Mapping[str, str]) -> dict[str, list[str]]:
             res_dict[value] = [key]
         else:
             arr.append(key)
-    
+
     return res_dict
