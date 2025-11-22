@@ -39,7 +39,7 @@ def build_index(
             banner_idx_list = dict_[word]
             if (not banner_idx_list) or (banner_idx_list[-1] != banner_idx):
                 banner_idx_list.append(banner_idx)
-    
+
     return dict_
 
 
@@ -76,7 +76,7 @@ def get_banner_indices_by_query(
         else:
             cur_idx = item
             cur_idx_cnt = 1
-        
+
         if (cur_idx is not None) and (cur_idx_cnt == len(words)):
             result.append(cur_idx)
 
